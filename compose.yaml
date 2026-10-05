@@ -1,0 +1,46 @@
+services:
+  # Laravel: the JSON API under /api, token auth (Sanctum), PDF packs and photos. No pages.
+  app:
+    build: ./backend
+    image: the-board
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "The Board"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      # Laravel is the API, at its own address. Photo URLs are built on it.
+      APP_URL: http://localhost:8000
+      FRONTEND_URL: http://localhost:3000
+      APP_LOCALE: en_GB
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /data/database.sqlite
+      SESSION_DRIVER: array
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+      PHOTO_ROOT: /data/photos
+    volumes:
+      - board-data:/data
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/up') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # Nuxt: every page. Renders on the server via the app service, and the browser calls the API on port 8000.
+  web:
+    build: ./frontend
+    image: the-board-web
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_API_BASE: http://app:8000
+      NUXT_PUBLIC_API_BASE: http://localhost:8000
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  board-data:
