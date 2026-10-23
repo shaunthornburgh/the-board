@@ -17,7 +17,10 @@ services:
       DB_DATABASE: /data/database.sqlite
       SESSION_DRIVER: array
       CACHE_STORE: database
+      # Jobs (the Analyst call) run inside the request. Switch to `database` and add a queue:work service for the real bot.
       QUEUE_CONNECTION: sync
+      # stub returns placeholder verdicts; grok calls the Analyst bot (set GROK_ANALYST_URL and GROK_API_KEY).
+      ANALYST_DRIVER: stub
       LOG_CHANNEL: stderr
       PHOTO_ROOT: /data/photos
     volumes:

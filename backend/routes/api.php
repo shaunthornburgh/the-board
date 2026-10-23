@@ -9,6 +9,7 @@ use App\Http\Controllers\InviteRequestController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\Operator;
 use App\Http\Controllers\PhotoController;
+use App\Http\Controllers\Scout;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TeaserController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/deals/{deal}/pack', [DealController::class, 'pack'])->name('deals.pack');
     });
 
+    // Scout bots, with a service token from `php artisan board:scout-token`. Everyone else gets 403.
+    Route::middleware(['service', 'abilities:scout:write', 'throttle:120,1'])->prefix('scout')->name('scout.')->group(function () {
+        Route::post('/candidates', [Scout\CandidateController::class, 'store'])->name('candidates.store');
+        Route::post('/seen', [Scout\SeenController::class, 'store'])->name('seen.store');
+        Route::post('/seen/check', [Scout\SeenController::class, 'check'])->name('seen.check');
+    });
+
     // The operator only. Members get 403.
     Route::middleware('operator')->prefix('operator')->name('operator.')->group(function () {
         Route::get('/deals', [Operator\DealController::class, 'index'])->name('deals.index');
@@ -44,6 +52,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/deals/{deal}', [Operator\DealController::class, 'show'])->name('deals.show');
         Route::put('/deals/{deal}', [Operator\DealController::class, 'update'])->name('deals.update');
         Route::post('/deals/{deal}/photo', [Operator\DealController::class, 'uploadPhoto'])->name('deals.photo');
+        // The pipeline. Moves that are not allowed from the deal's status return 422.
+        Route::post('/deals/bulk/reject', [Operator\DealController::class, 'bulkReject'])->name('deals.bulk.reject');
+        Route::post('/deals/bulk/send-to-analyst', [Operator\DealController::class, 'bulkSendToAnalyst'])->name('deals.bulk.analyst');
+        Route::post('/deals/{deal}/reject', [Operator\DealController::class, 'reject'])->name('deals.reject');
+        Route::post('/deals/{deal}/send-to-analyst', [Operator\DealController::class, 'sendToAnalyst'])->name('deals.analyst');
+        Route::post('/deals/{deal}/analyst-result', [Operator\DealController::class, 'analystResult'])->name('deals.analyst.result');
+        Route::post('/deals/{deal}/awaiting-review', [Operator\DealController::class, 'moveToReview'])->name('deals.review');
         Route::post('/deals/{deal}/publish', [Operator\DealController::class, 'publish'])->name('deals.publish');
         Route::post('/deals/{deal}/unpublish', [Operator\DealController::class, 'unpublish'])->name('deals.unpublish');
         Route::post('/deals/{deal}/pack', [Operator\DealController::class, 'generatePack'])->name('deals.pack');

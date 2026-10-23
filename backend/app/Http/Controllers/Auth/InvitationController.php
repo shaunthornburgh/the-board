@@ -33,7 +33,7 @@ class InvitationController extends Controller
 
         // Setting the password signs the member in.
         return response()->json([
-            'token' => $user->createToken('site')->plainTextToken,
+            'token' => $user->createToken('site', ['*'], now()->addMinutes(config('sanctum.site_token_minutes')))->plainTextToken,
             'user' => MeController::present($user),
         ]);
     }

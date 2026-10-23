@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DealStatus;
 use App\Models\Deal;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -69,7 +70,7 @@ class TokenAuthTest extends TestCase
     public function test_an_operator_token_publishes_without_any_cookie(): void
     {
         $token = $this->login('operator@theboard.test');
-        $draft = Deal::where('status', Deal::STATUS_DRAFT)->first();
+        $draft = Deal::where('status', DealStatus::AwaitingReview)->first();
 
         $response = $this->postJson("/api/operator/deals/{$draft->id}/publish", [], $this->bearer($token));
 

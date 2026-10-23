@@ -23,15 +23,15 @@ class LoginController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-        // Revoked members cannot sign in; invited members can, but only reach their settings page.
-        if (! $user || ! Hash::check($credentials['password'], $user->password) || $user->isRevoked()) {
+        // Revoked members and scout service accounts cannot sign in; invited members can, but only reach their settings page.
+        if (! $user || ! Hash::check($credentials['password'], $user->password) || $user->isRevoked() || $user->isService()) {
             throw ValidationException::withMessages([
                 'email' => 'Those details do not match an account.',
             ]);
         }
 
         return response()->json([
-            'token' => $user->createToken('site')->plainTextToken,
+            'token' => $user->createToken('site', ['*'], now()->addMinutes(config('sanctum.site_token_minutes')))->plainTextToken,
             'user' => MeController::present($user),
         ]);
     }
