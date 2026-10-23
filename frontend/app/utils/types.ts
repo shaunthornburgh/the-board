@@ -9,9 +9,13 @@ export interface Teaser {
   published_at: string | null
 }
 
+export type DealStatus = 'new' | 'awaiting_analyst' | 'analyst_done' | 'awaiting_review' | 'rejected' | 'published'
+
+export type AnalystVerdict = 'send' | 'mention' | 'reject'
+
 export interface Deal extends Omit<Teaser, 'photo_url'> {
   reference: string | null
-  status: 'draft' | 'published'
+  status: DealStatus
   origin: string
   title: string
   address: string | null
@@ -32,10 +36,33 @@ export interface Deal extends Omit<Teaser, 'photo_url'> {
   has_pack: boolean
 }
 
-/** The operator's view of a deal: everything, including the verdict, with raw values for the edit form. */
+export interface Strategy {
+  slug: string
+  label: string
+}
+
+/** The operator's view of a deal: everything, including the verdicts and pipeline state, with raw values for the edit form. */
 export interface OperatorDeal extends Omit<Deal, 'type' | 'tenure' | 'teaser'> {
+  status_label: string
+  status_changed_at: string | null
+  /** Statuses this deal can move to next. */
+  next: DealStatus[]
+  can_reject: boolean
   verdict: 'send' | 'mention' | null
   verdict_label: string | null
+  strategies: Strategy[]
+  scout: string | null
+  source: string | null
+  source_key: string | null
+  scout_notes: string | null
+  analyst_verdict: AnalystVerdict | null
+  analyst_verdict_label: string | null
+  analyst_notes: string | null
+  analyst_requested_at: string | null
+  analyst_completed_at: string | null
+  analyst_error: string | null
+  rejected_at: string | null
+  rejection_reason: string | null
   type: string | null
   type_label: string | null
   tenure: string | null
@@ -43,6 +70,23 @@ export interface OperatorDeal extends Omit<Deal, 'type' | 'tenure' | 'teaser'> {
   teaser: string | null
   has_photo: boolean
   updated_at: string | null
+}
+
+export interface StatusCount {
+  value: DealStatus
+  label: string
+  count: number
+}
+
+export interface StatusEvent {
+  id: number
+  from: DealStatus | null
+  from_label: string | null
+  to: DealStatus
+  to_label: string
+  by: string | null
+  note: string | null
+  at: string
 }
 
 export interface OperatorMember {

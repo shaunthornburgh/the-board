@@ -46,7 +46,11 @@ return [
     |
     */
 
-    'expiration' => env('SANCTUM_EXPIRATION', 60 * 24 * 30),
+    // Expiry is set per token instead (expires_at), so scout service tokens can outlive a site login.
+    'expiration' => null,
+
+    // Minutes a site login token lasts. Set on each token when it is issued.
+    'site_token_minutes' => (int) env('SANCTUM_EXPIRATION', 60 * 24 * 30),
 
     /*
     |--------------------------------------------------------------------------

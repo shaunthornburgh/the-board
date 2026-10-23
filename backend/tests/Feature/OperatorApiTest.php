@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DealStatus;
 use App\Models\Deal;
 use App\Models\InviteRequest;
 use App\Models\User;
@@ -37,18 +38,23 @@ class OperatorApiTest extends TestCase
         $this->actingAs($this->member(), 'sanctum')->postJson('/api/operator/deals/1/unpublish')->assertForbidden();
     }
 
-    public function test_the_operator_lists_drafts_and_published_deals_with_the_verdict(): void
+    public function test_the_operator_lists_every_deal_with_counts_per_status_and_the_verdict(): void
     {
-        $deals = $this->actingAs($this->operator(), 'sanctum')->getJson('/api/operator/deals')->assertOk()->json('deals');
+        $response = $this->actingAs($this->operator(), 'sanctum')->getJson('/api/operator/deals')->assertOk();
 
-        $this->assertCount(Deal::count(), $deals);
-        $this->assertSame('draft', $deals[0]['status']);
-        $this->assertArrayHasKey('verdict', $deals[0]);
+        $this->assertCount(Deal::count(), $response->json('deals'));
+        $this->assertArrayHasKey('verdict', $response->json('deals.0'));
+        $this->assertSame(['new', 'awaiting_analyst', 'analyst_done', 'awaiting_review', 'published', 'rejected'], array_column($response->json('statuses'), 'value'));
+        $this->assertSame(Deal::where('status', 'new')->count(), $response->json('statuses.0.count'));
+
+        $new = $this->actingAs($this->operator(), 'sanctum')->getJson('/api/operator/deals?status=new')->assertOk()->json('deals');
+        $this->assertNotEmpty($new);
+        $this->assertSame(['new'], array_values(array_unique(array_column($new, 'status'))));
     }
 
     public function test_publish_and_unpublish_control_what_members_see(): void
     {
-        $draft = Deal::where('status', Deal::STATUS_DRAFT)->first();
+        $draft = Deal::where('status', DealStatus::AwaitingReview)->first();
         $member = $this->member();
 
         $this->actingAs($member, 'sanctum')->getJson("/api/deals/{$draft->id}")->assertNotFound();
@@ -56,7 +62,7 @@ class OperatorApiTest extends TestCase
         $this->actingAs($this->operator(), 'sanctum')->postJson("/api/operator/deals/{$draft->id}/publish")->assertOk()->assertJsonPath('deal.status', 'published');
         $this->actingAs($member, 'sanctum')->getJson("/api/deals/{$draft->id}")->assertOk();
 
-        $this->actingAs($this->operator(), 'sanctum')->postJson("/api/operator/deals/{$draft->id}/unpublish")->assertOk()->assertJsonPath('deal.status', 'draft');
+        $this->actingAs($this->operator(), 'sanctum')->postJson("/api/operator/deals/{$draft->id}/unpublish")->assertOk()->assertJsonPath('deal.status', 'awaiting_review');
         $this->actingAs($member, 'sanctum')->getJson("/api/deals/{$draft->id}")->assertNotFound();
         $this->actingAs($member, 'sanctum')->get("/api/deals/{$draft->id}/pack")->assertNotFound();
     }
@@ -77,11 +83,11 @@ class OperatorApiTest extends TestCase
             ->assertJsonValidationErrors('comps_json');
     }
 
-    public function test_a_pasted_url_opens_an_empty_draft(): void
+    public function test_a_pasted_url_opens_a_new_deal(): void
     {
         $this->actingAs($this->operator(), 'sanctum')->postJson('/api/operator/deals', ['source_url' => 'https://www.example.com/listing/9'])
             ->assertCreated()
-            ->assertJsonPath('deal.status', 'draft')
+            ->assertJsonPath('deal.status', 'new')
             ->assertJsonPath('deal.source_name', 'example.com');
     }
 

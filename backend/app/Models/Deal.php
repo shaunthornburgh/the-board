@@ -2,23 +2,28 @@
 
 namespace App\Models;
 
+use App\Enums\AnalystVerdict;
+use App\Enums\DealStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'reference', 'development_type_id', 'status', 'origin', 'is_sample',
+    'reference', 'development_type_id', 'status', 'status_changed_at', 'rejected_at', 'rejection_reason',
+    'origin', 'scout', 'source', 'source_key', 'scout_notes', 'scout_payload', 'is_sample',
     'address', 'town', 'county', 'postcode', 'latitude', 'longitude', 'photo_url',
     'asking_price', 'tenure', 'source_name', 'source_url',
-    'verdict', 'bot_note', 'teaser', 'tenant', 'vacant_area_sq_ft', 'comps', 'evidence', 'appraised_at',
+    'verdict', 'bot_note', 'teaser',
+    'analyst_verdict', 'analyst_notes', 'analyst_requested_at', 'analyst_completed_at', 'analyst_error', 'tenant', 'vacant_area_sq_ft', 'comps', 'evidence', 'appraised_at',
     'pack_generated_at', 'published_at',
 ])]
 class Deal extends Model
 {
-    public const STATUS_DRAFT = 'draft';
-
-    public const STATUS_PUBLISHED = 'published';
+    /** Deals pushed by scouts and pasted URLs start here. */
+    protected $attributes = ['status' => 'new'];
 
     public const VERDICTS = ['send' => 'Send', 'mention' => 'Mention'];
 
@@ -27,6 +32,13 @@ class Deal extends Model
     protected function casts(): array
     {
         return [
+            'status' => DealStatus::class,
+            'status_changed_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'scout_payload' => 'array',
+            'analyst_verdict' => AnalystVerdict::class,
+            'analyst_requested_at' => 'datetime',
+            'analyst_completed_at' => 'datetime',
             'is_sample' => 'boolean',
             'latitude' => 'float',
             'longitude' => 'float',
@@ -45,29 +57,29 @@ class Deal extends Model
         return $this->belongsTo(DevelopmentType::class);
     }
 
+    public function strategies(): BelongsToMany
+    {
+        return $this->belongsToMany(Strategy::class)->orderBy('label');
+    }
+
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(DealStatusEvent::class)->latest('created_at')->latest('id');
+    }
+
     public function scopePublished(Builder $query): void
     {
-        $query->where('status', self::STATUS_PUBLISHED);
+        $query->where('status', DealStatus::Published);
     }
 
     public function isPublished(): bool
     {
-        return $this->status === self::STATUS_PUBLISHED;
+        return $this->status === DealStatus::Published;
     }
 
     public function hasPack(): bool
     {
         return $this->pack_generated_at !== null;
-    }
-
-    public function publish(): void
-    {
-        $this->update(['status' => self::STATUS_PUBLISHED, 'published_at' => now()]);
-    }
-
-    public function unpublish(): void
-    {
-        $this->update(['status' => self::STATUS_DRAFT, 'published_at' => null]);
     }
 
     /** A photo counts only when it is served by this app: a bundled sample or an operator upload. */
@@ -127,7 +139,7 @@ class Deal extends Model
         return [
             'id' => $this->id,
             'reference' => $this->reference,
-            'status' => $this->status,
+            'status' => $this->status?->value,
             'origin' => $this->origin,
             'is_sample' => $this->is_sample,
             'title' => $this->displayTitle(),

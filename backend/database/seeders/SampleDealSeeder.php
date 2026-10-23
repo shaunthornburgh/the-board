@@ -2,19 +2,26 @@
 
 namespace Database\Seeders;
 
+use App\Enums\DealStatus;
 use App\Models\Deal;
 use App\Models\DevelopmentType;
+use App\Models\ScoutSeenListing;
+use App\Models\Strategy;
+use App\Services\DealPipeline;
 use Illuminate\Database\Seeder;
 
 /**
- * Twenty fictional permitted-development deals across the South East and East of England.
- * Streets, tenants and listings are invented; towns and coordinates are approximate so the map works.
+ * Twenty fictional permitted-development deals across the South East and East of England, plus four
+ * sample scout candidates waiting in `new`. Streets, tenants and listings are invented; towns and
+ * coordinates are approximate so the map works.
  */
 class SampleDealSeeder extends Seeder
 {
     public function run(): void
     {
         $typeId = DevelopmentType::where('slug', 'pd')->value('id');
+        $strategies = Strategy::all();
+        $pd = $strategies->where('slug', 'pd')->pluck('id');
 
         // [address, town, county, postcode, lat, lng, price, tenure, source, verdict, tenant, vacant sq ft, published, pack, origin]
         $rows = [
@@ -48,9 +55,10 @@ class SampleDealSeeder extends Seeder
             $flats = intdiv((int) round($sqFt * 0.78), 500);
             $appraisedAt = now()->subDays(40 - $n)->setTime(9, 0);
 
-            Deal::updateOrCreate(['reference' => $reference], [
+            $deal = Deal::updateOrCreate(['reference' => $reference], [
                 'development_type_id' => $typeId,
-                'status' => $published ? Deal::STATUS_PUBLISHED : Deal::STATUS_DRAFT,
+                'status' => $published ? DealStatus::Published : DealStatus::AwaitingReview,
+                'status_changed_at' => $published ? now()->subDays(30 - 2 * $publishedCount)->setTime(10, 0) : $appraisedAt,
                 'origin' => $origin,
                 'is_sample' => true,
                 'address' => $address,
@@ -77,6 +85,53 @@ class SampleDealSeeder extends Seeder
                 'pack_generated_at' => $pack ? $appraisedAt->copy()->addHours(2) : null,
                 'published_at' => $published ? now()->subDays(30 - 2 * $publishedCount++)->setTime(10, 0) : null,
             ]);
+
+            $deal->strategies()->sync($pd);
+        }
+
+        $this->candidates($typeId, $strategies);
+    }
+
+    /** Fresh scout pushes that have not been looked at yet: no photo, no appraisal. */
+    private function candidates(int $typeId, $strategies): void
+    {
+        // [address, town, county, postcode, price, tenure, strategies, notes]
+        $rows = [
+            ['Former bank, 7 Sample Parade', 'Tonbridge', 'Kent', 'TN9', 640000, 'freehold', ['pd', 'potential-hmo'], 'Upper floors vacant per listing. Ground floor retail.'],
+            ['31 Demo Avenue', 'Slough', 'Berkshire', 'SL1', 455000, 'freehold', ['hmo'], 'Seven-bed house, listing mentions existing HMO licence.'],
+            ['Placeholder Court, 2 Mock Road', 'Harlow', 'Essex', 'CM20', 1200000, 'freehold', ['pd', 'social-housing'], 'Office block, agent mentions RP interest.'],
+            ['12 Fictional Close', 'Bedford', 'Bedfordshire', 'MK40', 395000, 'leasehold', ['potential-hmo'], 'Large semi near the station.'],
+        ];
+
+        foreach ($rows as $i => [$address, $town, $county, $postcode, $price, $tenure, $tags, $notes]) {
+            $n = 21 + $i;
+            $key = sprintf('sample-%d', $n);
+
+            $deal = Deal::updateOrCreate(['reference' => sprintf('SAMPLE-%02d', $n)], [
+                'development_type_id' => $typeId,
+                'status' => DealStatus::New,
+                'status_changed_at' => now()->subHours(6 - $i),
+                'origin' => 'scout',
+                'scout' => 'sample-scout',
+                'source' => 'example',
+                'source_key' => $key,
+                'is_sample' => true,
+                'address' => $address,
+                'town' => $town,
+                'county' => $county,
+                'postcode' => $postcode,
+                'asking_price' => $price,
+                'tenure' => $tenure,
+                'source_name' => 'example.com',
+                'source_url' => "https://example.com/listings/{$key}",
+                'scout_notes' => "Sample. {$notes}",
+            ]);
+
+            $deal->strategies()->sync($strategies->whereIn('slug', $tags)->pluck('id'));
+            if ($deal->wasRecentlyCreated) {
+                app(DealPipeline::class)->created($deal, actor: 'sample-scout', note: 'Pushed by scout');
+            }
+            ScoutSeenListing::mark('example', $key, $deal->source_url, 'sample-scout', $deal->id);
         }
     }
 

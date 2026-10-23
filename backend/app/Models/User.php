@@ -23,6 +23,9 @@ class User extends Authenticatable
 
     public const ROLE_MEMBER = 'member';
 
+    /** A scout bot. Holds a scout:write token only; cannot sign in or see the board. */
+    public const ROLE_SERVICE = 'service';
+
     public const STATUS_INVITED = 'invited';
 
     public const STATUS_ACTIVE = 'active';
@@ -43,6 +46,11 @@ class User extends Authenticatable
     public function isOperator(): bool
     {
         return $this->role === self::ROLE_OPERATOR;
+    }
+
+    public function isService(): bool
+    {
+        return $this->role === self::ROLE_SERVICE;
     }
 
     public function isActiveMember(): bool

@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    // The Analyst bot behind "Send to Analyst". stub returns placeholder verdicts; grok calls the bot (see GrokAnalystClient).
+    'analyst' => [
+        'driver' => env('ANALYST_DRIVER', 'stub'),
+        'timeout' => (int) env('ANALYST_TIMEOUT', 60),
+    ],
+
+    'grok' => [
+        'url' => env('GROK_ANALYST_URL'),
+        'key' => env('GROK_API_KEY'),
+        'model' => env('GROK_MODEL'),
+    ],
+
 ];

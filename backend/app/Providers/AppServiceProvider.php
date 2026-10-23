@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\Analyst\AnalystClient;
+use App\Services\Analyst\GrokAnalystClient;
+use App\Services\Analyst\StubAnalystClient;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +15,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(AnalystClient::class, fn () => match (config('services.analyst.driver')) {
+            'grok' => new GrokAnalystClient(
+                config('services.grok.url'),
+                config('services.grok.key'),
+                config('services.grok.model'),
+                config('services.analyst.timeout'),
+            ),
+            default => new StubAnalystClient,
+        });
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DealStatus;
 use App\Models\Deal;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -74,7 +75,7 @@ class PublicFaceTest extends TestCase
 
     public function test_drafts_stay_operator_only(): void
     {
-        $draft = Deal::where('status', Deal::STATUS_DRAFT)->first();
+        $draft = Deal::where('status', DealStatus::AwaitingReview)->first();
 
         $this->actingAs($this->member(), 'sanctum')->getJson("/api/deals/{$draft->id}")->assertNotFound();
         $this->getJson('/api/teasers')->assertJsonMissing(['id' => $draft->id]);
@@ -105,7 +106,7 @@ class PublicFaceTest extends TestCase
         Storage::fake('photos');
         $deal = Deal::create([
             'development_type_id' => 1,
-            'status' => Deal::STATUS_DRAFT,
+            'status' => DealStatus::AwaitingReview,
             'address' => '1 Test Street',
             'verdict' => 'send',
             'photo_url' => 'https://example.com/remote.jpg',
@@ -151,7 +152,7 @@ class PublicFaceTest extends TestCase
     {
         $deal = Deal::create([
             'development_type_id' => 1,
-            'status' => Deal::STATUS_DRAFT,
+            'status' => DealStatus::AwaitingReview,
             'address' => '2 Test Street',
             'photo_url' => '/images/deals/sample-01.jpg',
         ]);
