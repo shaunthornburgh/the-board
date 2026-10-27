@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/candidates', [Scout\CandidateController::class, 'store'])->name('candidates.store');
         Route::post('/seen', [Scout\SeenController::class, 'store'])->name('seen.store');
         Route::post('/seen/check', [Scout\SeenController::class, 'check'])->name('seen.check');
+        Route::get('/sources', [Scout\SourceController::class, 'index'])->name('sources.index');
     });
 
     // The operator only. Members get 403.
@@ -69,5 +70,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/members/{user}/invited', [Operator\MemberController::class, 'markInvited'])->name('members.invited');
         Route::post('/members/{user}/active', [Operator\MemberController::class, 'markActive'])->name('members.active');
         Route::post('/members/{user}/revoke', [Operator\MemberController::class, 'revoke'])->name('members.revoke');
+
+        Route::get('/sources', [Operator\SourceController::class, 'index'])->name('sources.index');
+        Route::post('/sources', [Operator\SourceController::class, 'store'])->name('sources.store');
+        Route::put('/sources/{source}', [Operator\SourceController::class, 'update'])->name('sources.update');
+        Route::delete('/sources/{source}', [Operator\SourceController::class, 'destroy'])->name('sources.destroy');
     });
 });
