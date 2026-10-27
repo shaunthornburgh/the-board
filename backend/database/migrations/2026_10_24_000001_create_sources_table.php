@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedInteger('priority');
             $table->string('category');
             $table->string('name');
-            $table->string('url', 2048)->unique();
+            $table->string('url', 250)->unique();
             $table->text('notes')->nullable();
             $table->boolean('active')->default(true);
             $table->timestamps();
