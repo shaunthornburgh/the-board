@@ -113,6 +113,15 @@ All under `/api/operator`, operator token only. Pipeline actions return `{ messa
 | `POST /deals/{id}/unpublish` | `published` → `awaiting_review` |
 | `POST /deals/{id}/photo`, `POST`/`DELETE /deals/{id}/pack` | Unchanged |
 
+### Operator source endpoints
+
+| Route | Does |
+| ----- | ---- |
+| `GET /sources` | Every source, active or not, by type, then priority, then name, as `{ data: [...] }` with `active` and `updated_at` |
+| `POST /sources` `{type, priority, category, name, url, notes?, active?}` | Add one. `type` is `auction` or `portal`; `url` must be unique. |
+| `PUT /sources/{id}` | Change any of those fields; leave out the ones you are not changing |
+| `DELETE /sources/{id}` | Delete it |
+
 ## Scout API
 
 Scouts push candidates and track what they have seen here instead of in Google Drive CSVs. A listing is identified by `source` (e.g. `rightmove`, lower-cased by the API) plus `source_key` (the listing's ID or short code).
@@ -153,6 +162,17 @@ Only `source` and `source_key` are required. `strategies` takes labels or slugs 
 **`POST /api/scout/seen`** `{"listings": [{"source", "source_key", "source_url?"}]}`: mark up to 500 listings as seen, whether or not they became candidates. Seeing one again updates `last_seen_at`.
 
 **`POST /api/scout/seen/check`** `{"listings": [{"source", "source_key"}]}`: returns `{"seen": [...]}` with just the ones seen before (with `first_seen_at`, `last_seen_at`, `scout`, `deal_id`). Unseen listings are left out.
+
+**`GET /api/scout/sources?type=auction`** (or `type=portal`): the sites to work through, replacing the target-list CSVs. Returns active sources of that type, lowest `priority` number first, then by name. Without `type`, every active source. An unknown `type` is a 422.
+
+```json
+{ "data": [
+  { "id": 2, "type": "auction", "priority": 1, "category": "Aggregator", "name": "AuctionRadar",
+    "url": "https://auctionradar.co.uk/", "notes": "Hit first" }
+] }
+```
+
+The `sources` table is seeded by its migration with 18 auction sources (aggregators, national and regional auction houses) and 7 portals (commercial and national portals). Each `url` is unique. Manage them with the operator endpoints below; set `active` to `false` to pause one without deleting it.
 
 ## Analyst
 
@@ -219,7 +239,7 @@ Map tiles load from OpenStreetMap, so the map needs an internet connection.
 
 ### Upgrading an existing volume
 
-`docker compose up` runs the new migrations on start. Existing drafts become `awaiting_review`, published deals stay published, the four strategy tags are created, and site login tokens get an `expires_at` 30 days after they were issued. The four new sample candidates only appear on a fresh volume (`docker compose down -v`).
+`docker compose up` runs the new migrations on start. Existing drafts become `awaiting_review`, published deals stay published, the four strategy tags and 25 scout sources are created, and site login tokens get an `expires_at` 30 days after they were issued. The four new sample candidates only appear on a fresh volume (`docker compose down -v`).
 
 ## Running without Docker
 
